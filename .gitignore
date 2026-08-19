@@ -1,0 +1,7 @@
+# Logs and temp files
+launcher.log
+portcheck.txt
+
+# OS
+Thumbs.db
+Desktop.ini
