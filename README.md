@@ -1,4 +1,4 @@
-﻿# dsh-oneclick-launcher
+# dsh-oneclick-launcher
 
 > Windows 一键启动 DeepSeek Harness（独立窗口版）
 > One-click launcher for DeepSeek Harness on Windows (standalone window, not a browser tab)
@@ -16,10 +16,13 @@
 
 一个 VBS 启动脚本 + 桌面快捷方式，双击即完成全部工作：
 
-1. 检查 `3080` 端口是否已有服务在运行
-2. 没有则**后台隐藏启动** `dsh web`（设置正确的工作目录，日志可查）
-3. 等待服务就绪（最长 90 秒，端口轮询）
+1. **HTTP 存活探测** `3080` 端口（请求返回 200 才算服务正常，不只是端口被占）
+2. 服务未就绪或**假死**（端口被占但 HTTP 不通）时，自动清理占用进程并**后台隐藏启动** `dsh web`（设置正确的工作目录）
+3. 等待服务真正就绪（HTTP 200，最长 90 秒）
 4. 用 Chrome **PWA 独立窗口**（app 模式）打开 GUI —— 不是浏览器标签页
+5. 每次运行写入 `launcher.log`，方便排查
+
+> **v7 起**：端口被僵死进程占用（如旧服务残留）时，脚本会自动 `taskkill` 该进程并重启服务，避免 PWA 打开后白屏/无法连接。
 
 ## 文件 / Files
 
@@ -92,12 +95,19 @@ chrome_proxy.exe --profile-directory=Default --app-id=<PWA_APP_ID>
 3. **`shell.Exec` 管道读取可能死锁**：`netstat | findstr` 的输出用 `AtEndOfStream` 判断可能卡住 → 改为重定向到临时文件再读取
 4. **`cmd /c` 嵌套引号 + 路径含空格**（如 `deepseeek harnees`）会解析失败 → 用 `shell.CurrentDirectory` 设置工作目录，避免 `cmd /c`
 5. **`dsh web` 需要正确的工作目录**：直接 `node bin.js --profile web` 若工作目录不对会启动失败；手动 `cd <npm目录> && dsh web` 才能成功
+6. **端口监听 ≠ 服务健康**：旧版只检查端口是否被占，端口被即将退出的进程占着时 PWA 会打开白屏 → v7 改为 HTTP 探测（`WinHttp.WinHttpRequest.5.1`，注意旧组件 `MSXML2.XMLHTTP` 不支持 `setTimeouts`），假死进程自动清理重启
 
 ## 卸载 / Uninstall
 
 1. 删除桌面快捷方式
 2. 删除 `DeepSeekHarnessLauncher.vbs`
 3. 如需彻底停止后台服务：任务管理器结束 `node.exe` 进程
+
+## 更新历史 / Changelog
+
+- **v7 (2026-08-30)**：HTTP 存活探测（`WinHttp`）替代纯端口检查；端口被占但 HTTP 不通（假死进程）时自动 `taskkill` 并重启服务；每次运行写 `launcher.log`；修复"PWA 打开白屏/无法连接"问题
+- v6 (2026-08-19)：用 `shell.CurrentDirectory` 修复路径含空格问题；临时文件法避免 `shell.Exec` 管道死锁
+- v5 (2026-08-19)：首个发布版（端口轮询 + 90 秒等待）
 
 ## 许可证 / License
 
